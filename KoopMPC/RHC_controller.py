@@ -84,8 +84,8 @@ if __name__ == "__main__":
     Q = np.eye(2)
     R = 1
     Pf = Q
-    N = 50
-    M = 20
+    N = 200
+    M = 10
     Ex = np.vstack((np.eye(2), -np.eye(2)))
     Ef = Ex
     Eu = np.vstack((np.eye(1), -np.eye(1)))

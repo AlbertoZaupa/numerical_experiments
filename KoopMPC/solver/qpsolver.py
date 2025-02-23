@@ -1,3 +1,5 @@
+from socket import send_fds
+
 import numpy as np
 from KoopMPC.solver.classes import Settings, Results, Info
 from scipy.linalg import eigh
@@ -95,8 +97,7 @@ class QPsolver(object):
             self.ADMM_iteration()
             # rho update
             if k % stng.check_interval == 0 and stng.adaptive_rho:
-                primal_res, dual_res, self.rho = self.compute_residuals(self.P,
-                        self.G, self.q, self.x, self.z, self.lam, self.rho, stng.rho_min, stng.rho_max)
+                primal_res, dual_res, self.rho = self.compute_residuals(self.G, self.x, self.z, self.prev_z, self.rho)
 
                 if stng.verbose:
                     print('Iter: {}, rho: {:.2e}, res_p: {:.2e}, res_d: {:.2e}'.format(k, self.rho, primal_res, dual_res))
@@ -112,7 +113,7 @@ class QPsolver(object):
                     
                     return self.results
 
-        primal_res, dual_res, rho = self.compute_residuals(self.P, self.G, self.q, self.x, self.z, self.lam, self.rho, stng.rho_min, stng.rho_max)
+        primal_res, dual_res, rho = self.compute_residuals(self.G, self.x, self.z, self.prev_z, self.rho)
         self.update_results(iter=stng.max_iter, 
                             status="max_iters_reached", 
                             pri_res=primal_res, 
@@ -123,7 +124,7 @@ class QPsolver(object):
     def ADMM_iteration(self):
         g = self.q + self.G.T @ (self.lam - self.rho * self.z)
         self.x = - self.T @ np.diag(1 / (self.rho * self.eigs + 1)) @ self.T.T @ g
-        #self.x = np.linalg.solve(self.P + self.rho * self.GG, -g)
+        self.prev_z = self.z
         self.z = np.clip(self.G @ self.x + self.lam / self.rho, self.l, self.u)
         self.lam = self.lam + self.rho*(self.G @ self.x - self.z)
 
@@ -150,16 +151,16 @@ class QPsolver(object):
         self.clear_primal_dual()
 
     @staticmethod
-    def compute_residuals(H, A, g, x, z, lam, rho, rho_min: float, rho_max: float):
+    def compute_residuals(A, x, z, prev_z, rho):
         t1 = np.matmul(A, x)
-        t2 = np.matmul(H, x)
-        t3 = np.matmul(A.T, lam)
 
         primal_res = np.linalg.norm(t1 - z, ord=np.inf)
-        dual_res = np.linalg.norm(t2 + t3 + g, ord=np.inf)
-        numerator = np.float64(primal_res) / np.float64(np.max((np.linalg.norm(t1, ord=np.inf), np.linalg.norm(z, ord=np.inf))))
-        denom = np.float64(dual_res) / np.float64(np.max((np.linalg.norm(t2, ord=np.inf), np.linalg.norm(t3, ord=np.inf), np.linalg.norm(g, ord=np.inf))))
-        rho = np.clip(rho * np.sqrt(numerator / denom), rho_min, rho_max)
+        dual_res = np.linalg.norm(rho * A.T @ (z - prev_z), ord=np.inf)
+
+        if primal_res > 4 * dual_res:
+            rho = 2 * rho
+        elif dual_res > 4 * primal_res:
+            rho = rho / 2
         return primal_res, dual_res, rho
     
     @staticmethod
