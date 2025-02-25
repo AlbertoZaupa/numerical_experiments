@@ -4,6 +4,53 @@ import matplotlib.pyplot as plt
 
 TOL = 1e-4
 
+class Condensed_RHC_controller():
+    def __init__(self, L, G, Q, R, Pf, Ex, ex, Eu, eu, Ef, ef, N):
+        self.N = N
+        nx = Ex.shape[1]
+        self.nu = Eu.shape[1]
+        R_bar = np.kron(np.eye(N), R)
+        Q_bar = np.kron(np.eye(N), Q)
+        Q_bar[-nx:, -nx:] = Pf
+        self.H = R_bar + G.T @ Q_bar @ G
+        self.M = G.T @ Q_bar @ L
+        # Compute E, e
+        nu_c = eu.shape[0]
+        self.nu_c = nu_c
+        nx_c = ex.shape[0]
+        E1 = np.kron(np.eye(N), Eu)
+        e1 = np.zeros((nu_c * N, 1))
+        for k in range(N):
+            e1[k * nu_c:(k + 1) * nu_c, :] = eu
+        E_ = np.kron(np.eye(N), Ex)
+        E_[-nx_c:, -nx:] = Ef
+        E2 = E_ @ G
+        self.E = np.vstack((E1, E2))
+        e2 = np.zeros((nx_c * N, 1))
+        for k in range(N):
+            e2[k * nx_c:(k + 1) * nx_c, :] = ex
+        e2[-nx_c:, :] = ef
+        self.e = np.vstack((e1, e2))
+        # Compute F
+        self.F = E_ @ L
+
+        self.solver = QPsolver()
+        self.solver.setup(P=self.H, q=np.zeros(self.M.shape[0]), G=self.E,
+                          l=np.full((self.E.shape[0],), fill_value=-np.inf),
+                          u=self.e, eps_abs=TOL)
+
+    def solve(self, x0):
+        g = self.M @ x0
+        g = g.reshape(-1)
+        upp = self.e - np.vstack((np.zeros((self.N * self.nu_c, 1)), -self.F @ x0))
+        upp = upp.reshape(-1)
+        self.solver.update(q=g, u=upp)
+        results = self.solver.solve()
+        #assert results.info.status == 'solved', (results.info.pri_res, results.info.dua_res)
+        return results.x[:self.nu]
+
+
+
 class RHC_controller():
     
     def __init__(self, A, C, B, Q, R, Pf, N, Ex, ex, Eu, eu, Ef, ef):
@@ -84,7 +131,7 @@ if __name__ == "__main__":
     Q = np.eye(2)
     R = 1
     Pf = Q
-    N = 200
+    N = 50
     M = 10
     Ex = np.vstack((np.eye(2), -np.eye(2)))
     Ef = Ex
