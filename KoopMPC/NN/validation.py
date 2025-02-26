@@ -68,7 +68,7 @@ def plot_signal_comparisons(y_tensor: torch.Tensor, predictions_tensor: torch.Te
 
 
 if __name__ == '__main__':
-    phi = HankelNetConv(n=2, n_prime=7, m=1, N=20, hidden_dim=[64, 64, 32])
-    phi.load_state_dict(torch.load('./model.pth'))
+    phi = HankelNetConv(n=2, n_prime=7, m=1, N=20, hidden_dim=[128, 128, 128, 64])
+    phi.load_state_dict(torch.load('./model.pth', map_location=torch.device('cpu')))
     phi.eval()
     validate_vdp(phi, 0.01, 100, 20)

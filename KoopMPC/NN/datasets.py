@@ -1,8 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 from pykoopman.common.examples import vdp_osc, rk4
-import warnings
-warnings.filterwarnings('ignore')
 
 class VdPDataset(Dataset):
     def __init__(self, N, n_traj, n_int, dT):

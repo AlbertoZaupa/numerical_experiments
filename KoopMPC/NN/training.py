@@ -19,8 +19,10 @@ if __name__ == '__main__':
     # Create the model, loss function, and optimizer.
     model = HankelNetConv(n=n, n_prime=n_prime, m=m, N=N, hidden_dim=[64, 64, 32])
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.7)
+    device = 'cpu' #'mps' if torch.backends.mps.is_available() else 'cpu'
 
     # Train the model.
-    model = train_model(model, dataloader, criterion, optimizer, num_epochs=200)
+    model = train_model(model, dataloader, criterion, optimizer, scheduler, device=device, num_epochs=200)
     torch.save(model.state_dict(), './model.pth')

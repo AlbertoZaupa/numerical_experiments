@@ -106,7 +106,7 @@ class HankelNetConv(nn.Module):
 
 
 # A training loop utility.
-def train_model(model, dataloader, criterion, optimizer, num_epochs=10, device='cpu'):
+def train_model(model, dataloader, criterion, optimizer, scheduler, num_epochs=10, device='cpu'):
     model.to(device)
     for epoch in range(num_epochs):
         model.train()
@@ -120,5 +120,6 @@ def train_model(model, dataloader, criterion, optimizer, num_epochs=10, device='
             optimizer.step()
             running_loss += loss.item() * x0.size(0)
         epoch_loss = running_loss / len(dataloader.dataset)
+        scheduler.step()
         print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}")
     return model
